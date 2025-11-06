@@ -149,14 +149,6 @@ centroids <- abunZooweights %*%
 plot(abunZoo[,1], type="l")
 ```
 
-```{r}
-plot(pcoaZoo$vectors,asp=1,col='white',las=1,
-     xlab= paste0("PCoa 1 (", round(pcoaZoo$values$Relative_eig[1]*100, digits=2), "%)"),
-     ylab= paste0("PCoa 2 (", round(pcoaZoo$values$Relative_eig[2]*100, digits=2), "%)"))
-     points(centroids, col=color_values(as.numeric(rownames(centroids)),alpha=0.5),pch=16),
-     text(pcoaZoo$vectors,rownames(pcoaZoo$vectors),col="grey20",font=3,cex=0.5)
-```
-
 For a PCoa, you are working with a triangular similarity matrix, as for a PCA you are working with rectangular matrix with species as columns and sites as rows.
 
 ## Ecological Trajectory Analysis

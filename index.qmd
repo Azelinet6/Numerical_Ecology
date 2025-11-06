@@ -1,0 +1,17 @@
+---
+title: "Numerical Ecology courses 2025"
+---
+
+[Because following EBAME clearly wasn't enough... ahah 🫠🫠🫠]{.smallcaps}
+
+This website contains all the material my brain was able to follow and produce throughout all the numerical ecology courses.
+
+::::: {.columns style="display: flex; gap: 2em;"}
+::: {.column style="flex: 1; text-align: center;"}
+![](images/homer-brain.gif){width="400"}
+:::
+
+::: {.column style="flex: 1; text-align: center;"}
+![](images/old-no-brain.gif){width="400"}
+:::
+:::::
