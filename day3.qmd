@@ -164,6 +164,7 @@ For a PCoa, you are working with a triangular similarity matrix, as for a PCA yo
 ```{r}
 library(ecotraj)
 library(vegclust)
+library(smacof)
 ```
 
 ```{r}
@@ -175,5 +176,40 @@ data("avoca")
 avoca_D_man <- vegclust::vegdiststruct(avoca_strat, 
                                        method="manhattan", 
                                        transform = function(x){log(x+1)})
+```
+
+```{r}
+years <- c(1971, 1974, 1978, 1983, 1987, 1993, 1999, 2004, 2009)
+avoca_times <- years[avoca_surveys]
+```
+
+```{r}
+avoca_x <- defineTrajectories(d = avoca_D_man,  
+                              sites = avoca_sites, 
+                              times = avoca_times)
+```
+
+```{r}
+trajectoryPCoA(avoca_x,
+               traj.colors = RColorBrewer::brewer.pal(8,"Accent"), 
+               axes=c(1,2), length=0.1, lwd=2)
+legend("topright", bty="n", legend = 1:8, col = RColorBrewer::brewer.pal(8,"Accent"), lwd=2)
+```
+```{r}
+Metrics <- trajectoryMetrics(avoca_x)
+Metrics
+```
+
+
+```{r}
+mMDS <- smacof::mds(avoca_D_man)
+mMDS
+```
+
+```{r}
+trajectoryPlot(mMDS$conf,  avoca_sites, avoca_surveys,
+               traj.colors = RColorBrewer::brewer.pal(8,"Accent"), 
+               axes=c(1,2), length=0.1, lwd=2)
+legend("topright", bty="n", legend = 1:8, col = RColorBrewer::brewer.pal(8,"Accent"), lwd=2)
 ```
 
