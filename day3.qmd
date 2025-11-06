@@ -1,0 +1,179 @@
+---
+title: "Day 3"
+---
+
+```{r, warning=FALSE}
+library(vegan)
+library(ape)
+library(colourvalues)
+library(FD)
+```
+
+```{r}
+data(mite)
+data("mite.env")
+```
+
+## PCA and PCoA on euclidean distances are equivalent
+
+The function 'pcrcomp' is the native R PCA function. It should not be used for community data cause it assumes thah you're working with Euclidean distances.
+
+The function 'dist' compute the Euclidean distances of our matrices.
+
+```{r, warning=FALSE}
+pcaTest <- prcomp(mite)
+biplot(pcaTest)
+pcoaTest <- pcoa(dist(mite))
+biplot(pcoaTest)
+```
+
+At the core of the PCoA, there is a dissimilarity matrix, as for the PCA, you work with euclidean distances.
+
+```{r}
+distPCA <- as.vector(dist(pcaTest$x))
+distPcoa <- as.vector(dist(pcoaTest$vectors))
+plot(distPCA,distPcoa)
+abline(a=0,b=1,col='red')
+```
+
+If you do a PCoA on euclidean distances, it's the same as doing a PCA on a covariance matrix. when the PCA is based on a correlation matrix, the axis are scaled, which PCoA does not.
+
+The big strength of doing PCoA, is to not work with euclidean distances, otherwise you must do a PCA.
+
+```{r}
+miteBray <- vegdist(mite, method='bray')
+
+miteBrayPcoa <- pcoa(miteBray)
+biplot(miteBrayPcoa)
+```
+
+The first thing you should look at after doing a PCA/PCoA is looking at the variation explained by each axes.
+
+```{r}
+barplot(miteBrayPcoa$values$Relative_eig*100, las=1)
+```
+
+Here, there is negative eigenvalues, which we cannot explain.
+
+With the PCA, you can have up to n-1 (n= number of species variables or columns) axis. With a PCoA, you can have up to n-1 (n= number of sites or rows) dimensions.
+
+```{r}
+plot(miteBrayPcoa$vectors,
+     xlab=paste0("PCoa 1 (",
+                 round(miteBrayPcoa$values$Relative_eig[1]*100, digits=2), "%)"),
+     ylab=paste0("PCoa 2 (", round(miteBrayPcoa$values$Relative_eig[2]*100, digits=2), "%)"),
+     asp=1, las=1, pch=16,
+     col=colour_values(mite.env$WatrCont))
+```
+
+The same thing with other distance matrix, like hellinger dissimilarities
+
+```{r}
+miteHell <- vegdist(mite, method="hellinger")
+
+miteHellPCoa <- pcoa(miteHell)
+biplot(miteHellPCoa)
+
+barplot(miteHellPCoa$values$Relative_eig*100,las=1)
+```
+
+Here we can see there is no negative eigenvalues.
+
+```{r}
+plot(miteHellPCoa$vectors,
+     xlab=paste0("PCoa 1 (",
+                 round(miteHellPCoa$values$Relative_eig[1]*100, digits=2), "%)"),
+     ylab=paste0("PCoa 2 (", round(miteHellPCoa$values$Relative_eig[2]*100, digits=2), "%)"),
+     asp=1, las=1, pch=16,
+     col=colour_values(mite.env$WatrCont))
+```
+
+The Hellinger distances focus more on the proportion/relative abundances, as Bray-curtis is more suited if you are interested in absolute abondances. With Hellinger distances you can close the triangle inequality. That is due to the transformation of your rectangle matrix (abundance matrix) by the square root of proportions. Euclidean distances are based on the square root of absolute abundances.
+
+Maybe read some papers by Pierre Legendre ? 😭
+
+## What is Euclidean space ?
+
+*'Euclidean space is the fundamental space of geometry, intended to represent physical space. Originally, in Euclid's Elements, it was the three-dimensional space of Euclidean geometry, but in modern mathematics there are Euclidean spaces of any positive integer dimension n, which are called Euclidean n-spaces when one wants to specify their dimension.^\[1\]^ For n equal to one or two, they are commonly called respectively Euclidean lines and Euclidean planes. The qualifier "Euclidean" is used to distinguish Euclidean spaces from other spaces that were later considered in physics and modern mathematics.'*
+
+## Trait-based ecology
+
+Instead of asking what the species are, you're asking what the species are doing, like the size, the weight. You want to look if some species are doing the same things in your community.
+
+```{r}
+load("Supporting data Djeghri et al North Sea Regime Shifts and Plankton Traits/abunselectaxa.RData")
+library(FD)
+
+traits=list()
+traits$Zoo=read.csv("Supporting data Djeghri et al North Sea Regime Shifts and Plankton Traits/Zoo_Traits_NSRS.csv",row.names = 1,na.strings="")
+traits$Phyto=read.csv("Supporting data Djeghri et al North Sea Regime Shifts and Plankton Traits/Phyto_Traits_NSRS.csv",row.names = 1,na.strings="")
+#log of size-related traits
+traits$Zoo[,1:2]=log(traits$Zoo[,1:2])
+traits$Phyto[,1:2]=log(traits$Phyto[,1:2])
+
+#parameters for the computation of Gower distances, most importantly, weights attributed to each traits (also allows to parametrize fuzzy traits)
+#CARFUL! THE NAMES MUST BE THE SAME AS IN TRAITS!!!
+gowerparam=list()
+gowerparam$Zoo$weights=c(0.5,0.5,1,0.5,0.5,0.5,0.5,1)
+gowerparam$Phyto$weights=c(0.5,0.5,1,1/3,1/3,1/3,1,1,0.5,0.5)
+
+#CHECK IF ALL TRAITS ARE AVAILABLE FOR ALL SPECIES
+Zookept=read.csv("Supporting data Djeghri et al North Sea Regime Shifts and Plankton Traits/Zookept.csv",row.names=1)
+traits$Zoo[Zookept$x,]
+traits$Zoo=traits$Zoo[Zookept$x,]
+
+Phytokept=read.csv("Supporting data Djeghri et al North Sea Regime Shifts and Plankton Traits/Phytokept.csv",row.names=1)
+traits$Phyto[Phytokept$x,]
+traits$Phyto=traits$Phyto[Phytokept$x,]
+```
+
+```{r}
+distZoo <- gowdis(traits$Zoo, w=gowerparam$Zoo$weights)
+
+pcoaZoo <- pcoa(distZoo)
+biplot(pcoaZoo)
+```
+
+```{r}
+abunZoo <- abunselectaxa$C02$Zoo$Months
+abunZooweights <- abunZoo/apply(abunZoo,1,sum)
+abunZooweights <- abunZooweights[,rownames(pcoaZoo$vectors)]
+```
+
+```{r}
+centroids <- abunZooweights %*%
+  pcoaZoo$vectors
+```
+
+```{r}
+plot(abunZoo[,1], type="l")
+```
+
+```{r}
+plot(pcoaZoo$vectors,asp=1,col='white',las=1,
+     xlab= paste0("PCoa 1 (", round(pcoaZoo$values$Relative_eig[1]*100, digits=2), "%)"),
+     ylab= paste0("PCoa 2 (", round(pcoaZoo$values$Relative_eig[2]*100, digits=2), "%)"))
+     points(centroids, col=color_values(as.numeric(rownames(centroids)),alpha=0.5),pch=16),
+     text(pcoaZoo$vectors,rownames(pcoaZoo$vectors),col="grey20",font=3,cex=0.5)
+```
+
+For a PCoa, you are working with a triangular similarity matrix, as for a PCA you are working with rectangular matrix with species as columns and sites as rows.
+
+## Ecological Trajectory Analysis
+
+```{r}
+library(ecotraj)
+library(vegclust)
+```
+
+```{r}
+data("avoca")
+```
+
+
+```{r}
+avoca_D_man <- vegclust::vegdiststruct(avoca_strat, 
+                                       method="manhattan", 
+                                       transform = function(x){log(x+1)})
+```
+
