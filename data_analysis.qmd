@@ -1,0 +1,38 @@
+---
+title: "Analyse de la structure du microbiome de Rhopilema nomadica"
+---
+
+# Mise en forme des données
+
+## Chargement des packages
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ade4)
+library(ggplot2)
+library(vegan)
+library(readxl)
+```
+
+## Téléchargement des matrices
+
+```{r}
+env_matrix <- read_excel("Additional_Files/Additional_File_05_metadados_paraR_coral.xlsx")
+env_matrix <- column_to_rownames(env_matrix, var = "sample")
+View(env_matrix)
+
+res_matrix <- read_excel("Additional_Files/Additional_File_03_asv_otu5_paraR_coral.xlsx")
+res_matrix <- column_to_rownames(res_matrix, var = "ASV")
+View(res_matrix)
+
+tax_matrix <- read_excel("Additional_Files/Additional_File_04_asv_tax5_paraR.xlsx")
+tax_matrix <- column_to_rownames(tax_matrix, var = "ASV")
+```
+
+```{r}
+res_matrix_t <- t(res_matrix)
+tax_matrix_t <- t(tax_matrix)
+```
+
+
