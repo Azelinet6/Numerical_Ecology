@@ -1,6 +1,10 @@
 ---
 title: "Analyse des données de l'expédition TARA OCEANS MICROBIOME"
 ---
+```{r}
+source("cleanplot.pca.R")
+source("triplot.rda.R")
+```
 
 # Mise en forme des données
 
@@ -15,6 +19,7 @@ library(vegan)
 library(readxl)
 library(tibble)
 library(missMDA)
+library(stringr)
 ```
 
 ## Téléchargement des matrices
@@ -137,4 +142,267 @@ meta_info <- metadata_table[, c("Mean_Date [YY/MM/DD hh:mm]*", "Mean_Lat*", "Mea
 
 ```
 
-KHAN
+KHAN BOSSE DUR
+
+Transposition de la table de taxonomie pour avoir OTU en ligne et noms de rangs taxonomiques en colonnes
+
+```{r}
+tax_table_t <- as.data.frame(t(tax_table))
+```
+
+Filtration pour enlever les OTU non désirées : Archaea, Eukaryota, Chloroplast, Mitochondria.
+
+```{r}
+bad_OTU <- c("Archaea", "Eukaryota", "Chloroplast", "Mitochondria")
+
+good_OTU <- rownames(tax_table_t)[!apply(tax_table_t, 1, function(x)
+  any(str_detect(x, regex(paste(bad_OTU, collapse = "|"), ignore_case = TRUE))))]
+```
+
+Supression des OTU non assignés au niveau du Phylum et Domain:
+
+```{r}
+good_OTU <- good_OTU[!is.na(tax_table_t[good_OTU, "Domain"]) & !is.na(tax_table_t[good_OTU, "Phylum"])]
+```
+
+Filter la table d'OTU et de taxonomie
+
+```{r}
+tax_table_filt <- tax_table_t[good_OTU, ]
+otu_table_filt <- otu_table[, colnames(otu_table) %in% good_OTU]
+```
+
+Vérification de la correspondance entre les tables
+
+```{r}
+all(colnames(otu_table_filt) %in% rownames(tax_table_filt))
+```
+Vérifier qu'il n'y ait pas d'OTUs avec abondance totale = 0
+```{r}
+# Calculer la somme par colonne (OTU)
+otu_sums <- colSums(otu_table_filt)
+
+# OTU avec somme = 0
+zero_otus <- names(otu_sums[otu_sums == 0])
+
+# Combien d'OTU sont à 0
+length(zero_otus)
+
+# Afficher les OTU
+zero_otus
+
+```
+
+
+### **Les Petites normalisations**
+
+#### Transformation de hellinger essai N°1 :
+
+```{r}
+otu_hellinger <- decostand(otu_table_filt, method = "hellinger")
+```
+
+```{r}
+dim(otu_table)
+#[1]   139 35651
+dim(otu_table_filt)
+#[1]   139 24799
+dim(otu_hellinger)
+#[1]   139 24799
+```
+
+Petite PCA aventurière et exploratoire N°1
+
+```{r}
+otu_pca <- rda(otu_hellinger)
+summary(otu_pca)
+```
+
+Petit plot exploratoire N°1
+
+```{r}
+Plot_aventurier <- cleanplot.pca(otu_pca)
+Plot_aventurier # pas visualisable
+```
+
+Il y a trop de colonnes OTU, je vais donc fusionner les colonnes Taxo et OTU pour essayer de réunir les OTU par class ou Phylum
+
+#### Phylum
+
+Il faut d'abord s’assurer que les colonnes de otu_table_filt correspondent aux lignes de tax_table_filt.
+La transformation hellinger viens apres
+
+```{r}
+all(colnames(otu_table_filt) == rownames(tax_table_filt))
+```
+
+Transposition de la table OTU pour avoir les OTUs en lignes
+```{r}
+otu_table_filt_t <- as.data.frame(t(otu_table_filt))  # OTU en lignes, échantillons en colonnes
+```
+
+```{r}
+all(rownames(otu_table_filt_t) == rownames(tax_table_filt))
+```
+
+Fusionner OTU + taxonomie
+```{r}
+otu_taxo <- cbind(otu_table_filt_t, tax_table_filt)
+```
+
+```{r}
+otu_by_phylum <- otu_taxo %>%
+  group_by(Phylum) %>%  # regrouper selon la colonne "Phylum"
+  summarise(across(where(is.numeric), \(x) sum(x, na.rm = TRUE))) # somme les abondances pour chaque phylum
+```
+
+Transposition pour avoir le nom des échantillons en lignes
+
+```{r}
+otu_by_phylum_t <- as.data.frame(t(otu_by_phylum[,-1])) # retirer la colonne "Phylum" avant transposition
+colnames(otu_by_phylum_t) <- otu_by_phylum$Phylum       # renommer les colonnes avec les noms de Phylum
+```
+
+#### Class
+
+```{r}
+otu_by_class <- otu_taxo %>%
+  group_by(Class) %>%  # regrouper selon la colonne "Class"
+  summarise(across(where(is.numeric), \(x) sum(x, na.rm = TRUE))) # somme les abondances pour chaque phylum
+```
+
+Transposition pour avoir le nom des échantillons en lignes
+
+```{r}
+otu_by_class_t <- as.data.frame(t(otu_by_class[,-1])) # retirer la colonne "Class" avant transposition
+colnames(otu_by_class_t) <- otu_by_class$Class       # renommer les colonnes avec les noms de Class
+```
+
+
+#### Transformation de hellinger essai N°2 :
+
+#### Phylum Hell
+
+Maintenant on peut faire de nouveau la transformation Hellinger sur la nouvelle table
+
+```{r}
+otu_hell_Phylum <- decostand(otu_by_phylum_t, method = "hellinger")
+```
+
+Petite PCA aventurière et exploratoire N°2 sur Phylum
+
+```{r}
+pca_Phylum <- rda(otu_hell_Phylum)
+summary(pca_Phylum)
+```
+
+Petit plot exploratoire N°2 sur Phylum
+
+```{r}
+Plot_aventurier <- cleanplot.pca(pca_Phylum, label.sites = FALSE)
+Plot_aventurier # mieux visualisable
+```
+
+
+#### Class Hell
+
+```{r}
+otu_hell_Class <- decostand(otu_by_class_t, method = "hellinger")
+```
+
+Petite PCA aventurière et exploratoire N°2 sur Class
+
+```{r}
+pca_Class <- rda(otu_hell_Class)
+summary(pca_Class)
+```
+
+Petit plot exploratoire N°2 sur Class
+
+```{r}
+Plot_aventurier_class <- cleanplot.pca(pca_Class, label.sites = FALSE)
+Plot_aventurier_class # pas visualisable
+```
+Je veux filter et enlever de la PCA les Classes de bactéries qui ne contribues pas à la variance
+
+```{r}
+good_spe_class <- goodness(pca_Class, display = "species")
+head(good_spe_class)
+```
+
+Sauf que je n'y arrive pas donc je give up on this
+
+### RDA constrained
+
+Ici on utilise les métadonnées, mais on fait une sous sélection de ce qui nous intéresse
+
+```{r}
+Meta_moins <- metadata_quant[, c("Mean_Temperature..deg.C..",
+                                 "Mean_Salinity..PSU..",
+                                 "Mean_Oxygen..umol.kg..",
+                                 "Mean_Nitrates.umol.L..",
+                                 "NO2..umol.L...",
+                                 "PO4..umol.L...",
+                                 "NO2NO3..umol.L...",
+                                 "SI..umol.L...")]
+```
+
+```{r}
+Meta_moins_df <- as.data.frame(Meta_moins)
+```
+
+Vérifier que tout soit dans le bon ordre 
+
+```{r}
+all(rownames(otu_hell_Class) == rownames(Meta_moins_df))
+```
+
+```{r}
+rda_class <- rda(otu_hell_Class ~ ., data = Meta_moins_df)
+summary(rda_class)
+```
+
+On obtient : Constrained 0.05970 soit 53.6% de la variance expliquée par les variables environnementales 
+
+Le plot du turfu:
+
+```{r}
+Plot_RDA_class <- triplot.rda(rda_class,
+                              label.sites = FALSE,
+                              mult.spe = 1.0,
+                              cex.char1 = 0.8)
+Plot_RDA_class
+```
+
+Good_var_class[,2] : sélectionne la deuxième colonne de la matrice
+0.4 : ne filtre que les classes qui expliquent au moins 40 % de la variance le long des axes choisis.
+
+```{r}
+Good_var_class <- goodness(rda_class)
+Selected_class <- which(Good_var_class[,2] >= 0.4)
+```
+
+```{r}
+triplot.rda(rda_class,
+            scaling = 2,
+            label.sites = FALSE,
+            select.spe = Selected_class,
+            mar.percent = 0.1 #Expands the plot margins
+            )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
