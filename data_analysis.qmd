@@ -3,6 +3,7 @@ title: "Analyse des données de l'expédition TARA OCEANS MICROBIOME"
 ---
 
 # Mise en forme des données
+
 ## Chargement des packages
 
 ```{r, warning=FALSE}
@@ -57,6 +58,7 @@ key_table_W1 <- read_excel("OM.CompanionTables.xlsx", sheet = "Table W1")
 ```
 
 ### Rassemblement des Sample ID Tara avec les Sample ID Pangea
+
 ```{r}
 key_select <- key_table_W1 %>%
   select(`Sample label [TARA_station#_environmental-feature_size-fraction]`, PANGAEA_Sample_ID) %>%
@@ -117,7 +119,6 @@ metadata_quant <- metadata_table[, c(
 names(metadata_quant) <- make.names(names(metadata_quant))
 ```
 
-
 ```{r}
 nb <- estim_ncpPCA(metadata_quant)$ncp   
 metadata_quant <- imputePCA(metadata_quant, ncp = nb)$completeObs
@@ -136,3 +137,4 @@ meta_info <- metadata_table[, c("Mean_Date [YY/MM/DD hh:mm]*", "Mean_Lat*", "Mea
 
 ```
 
+KHAN
