@@ -1,38 +1,138 @@
 ---
-title: "Analyse de la structure du microbiome de Rhopilema nomadica"
+title: "Analyse des données de l'expédition TARA OCEANS MICROBIOME"
 ---
 
 # Mise en forme des données
-
 ## Chargement des packages
 
-```{r}
+```{r, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(ade4)
 library(ggplot2)
 library(vegan)
 library(readxl)
+library(tibble)
+library(missMDA)
 ```
 
 ## Téléchargement des matrices
 
 ```{r}
-env_matrix <- read_excel("Additional_Files/Additional_File_05_metadados_paraR_coral.xlsx")
-env_matrix <- column_to_rownames(env_matrix, var = "sample")
-View(env_matrix)
+otu_table <- read_excel("miTAG.taxonomic.profiles.release.xlsx", 
+    sheet = "otu_table", na = "NA")
+otu_table <- otu_table |>
+  column_to_rownames(var = "OTU.rep")
 
-res_matrix <- read_excel("Additional_Files/Additional_File_03_asv_otu5_paraR_coral.xlsx")
-res_matrix <- column_to_rownames(res_matrix, var = "ASV")
-View(res_matrix)
+otu_table <- otu_table |>
+  t() |>
+  as.data.frame() |>
+  rownames_to_column(var = "Sample.label")
+View(otu_table)
 
-tax_matrix <- read_excel("Additional_Files/Additional_File_04_asv_tax5_paraR.xlsx")
-tax_matrix <- column_to_rownames(tax_matrix, var = "ASV")
+tax_table <- read_excel("miTAG.taxonomic.profiles.release.xlsx", 
+    sheet = "tax_table")
+tax_table <- tax_table |>
+  column_to_rownames(var = "OTU.rep")
+
+tax_table <- t(tax_table)
+View(tax_table)
+```
+
+```{r, warning = FALSE}
+meta_raw_W8 <- read_excel("OM.CompanionTables.xlsx", 
+    sheet = "Table W8", col_types = c("text", 
+        "date", "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", "numeric", 
+        "numeric", "numeric"))
+key_table_W1 <- read_excel("OM.CompanionTables.xlsx", sheet = "Table W1")
+```
+
+### Rassemblement des Sample ID Tara avec les Sample ID Pangea
+```{r}
+key_select <- key_table_W1 %>%
+  select(`Sample label [TARA_station#_environmental-feature_size-fraction]`, PANGAEA_Sample_ID) %>%
+  rename(
+    Sample.label = `Sample label [TARA_station#_environmental-feature_size-fraction]`
+  )
+
+metadata_table <- inner_join(key_select, meta_raw_W8, by = "PANGAEA_Sample_ID") 
+metadata_table <- metadata_table |>
+  select(-PANGAEA_Sample_ID, -grad_SST_adv)
+```
+
+### Filtration des noms d'échantillons avec l'OTU_table et les metadata
+
+```{r}
+common_samples <- intersect(otu_table$Sample.label, metadata_table$Sample.label)
+
+otu_table<- otu_table |>
+  filter(Sample.label %in% common_samples) |>
+  arrange(Sample.label) |>
+  column_to_rownames(var = "Sample.label")
+  
+
+metadata_table <- metadata_table |>
+  filter(Sample.label %in% common_samples) |>
+  arrange(Sample.label) |>
+  column_to_rownames(var = "Sample.label")
 ```
 
 ```{r}
-res_matrix_t <- t(res_matrix)
-tax_matrix_t <- t(tax_matrix)
+colSums(is.na(metadata_table))
+rowSums(is.na(metadata_table)) 
 ```
 
+```{r}
+metadata_quant <- metadata_table[, c(
+  "Mean_Depth [m]*",
+  "Mean_Temperature [deg C]*",
+  "Mean_Salinity [PSU]*",
+  "Mean_Oxygen [umol/kg]*",
+  "Mean_Nitrates[umol/L]*",
+  "NO2 [umol/L]**",
+  "PO4 [umol/L]**",
+  "NO2NO3 [umol/L]**",
+  "SI [umol/L]**",
+  "AMODIS:PAR8d,Einsteins/m-2/d-1",
+  "Okubo-Weiss",
+  "Lyapunov_exp.",
+  "retention",
+  "Mean Depth MLD Sigma [m]*",
+  "Mean Depth Max Fluo [m]*",
+  "Mean Depth Max N2 [m]*",
+  "Mean Depth Max O2 [m]*",
+  "Mean Depth Min O2 [m]*",
+  "Mean Depth Nitracline [m]*"
+)]
+
+names(metadata_quant) <- make.names(names(metadata_quant))
+```
+
+
+```{r}
+nb <- estim_ncpPCA(metadata_quant)$ncp   
+metadata_quant <- imputePCA(metadata_quant, ncp = nb)$completeObs
+
+sum(is.na(metadata_quant))  
+head(metadata_quant)
+```
+
+```{r}
+meta_info <- metadata_table[, c("Mean_Date [YY/MM/DD hh:mm]*", "Mean_Lat*", "Mean_Long*")]
+```
+
+# Analyses multivariées
+
+```{r}
+
+```
 
